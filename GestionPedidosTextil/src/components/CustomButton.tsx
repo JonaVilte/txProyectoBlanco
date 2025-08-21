@@ -19,7 +19,7 @@ interface CustomButtonProps {
   textStyle?: TextStyle;
 }
 
-export const CustomButton: React.FC<CustomButtonProps> = ({
+const CustomButton: React.FC<CustomButtonProps> = ({
   title,
   onPress,
   loading = false,
@@ -105,3 +105,5 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
 });
+
+export default CustomButton;

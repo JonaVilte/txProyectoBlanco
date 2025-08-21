@@ -1,4 +1,7 @@
+"use client";
+
 import type React from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,22 +9,60 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  FlatList,
+  RefreshControl,
 } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../constants/colors";
-import type { User } from "../types";
+import type { User, DatabaseProduct } from "../types";
 import { StorageService } from "../utils/storage";
+import { databaseService } from "../utils/database";
 
 interface DashboardScreenProps {
   user: User;
   onLogout: () => void;
+  navigation: any;
 }
 
-export const DashboardScreen: React.FC<DashboardScreenProps> = ({
+const DashboardScreen: React.FC<DashboardScreenProps> = ({
   user,
   onLogout,
+  navigation,
 }) => {
+  const [products, setProducts] = useState<DatabaseProduct[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadProducts = async () => {
+    setLoading(true);
+    try {
+      const result = await databaseService.getProducts();
+      if (result.success && result.products) {
+        setProducts(result.products);
+      } else {
+        Alert.alert(
+          "Error",
+          result.error?.message || "No se pudieron cargar los productos"
+        );
+      }
+    } catch (error) {
+      Alert.alert("Error", "Error al cargar productos");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadProducts();
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
   const handleLogout = () => {
     Alert.alert(
       "Cerrar Sesión",
@@ -70,10 +111,61 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
     </TouchableOpacity>
   );
 
+  const ProductCard = ({ item }: { item: DatabaseProduct }) => (
+    <Animated.View entering={FadeInDown.delay(100)} style={styles.productCard}>
+      <View style={styles.productHeader}>
+        <Text style={styles.productName}>{item.nombre}</Text>
+        <Text style={styles.productPrice}>${item.precio.toFixed(2)}</Text>
+      </View>
+
+      {item.descripcion && (
+        <Text style={styles.productDescription} numberOfLines={2}>
+          {item.descripcion}
+        </Text>
+      )}
+
+      <View style={styles.productDetails}>
+        <View style={styles.productTag}>
+          <Ionicons name="pricetag" size={14} color={Colors.primary} />
+          <Text style={styles.productTagText}>
+            {item.categoria || "Sin categoría"}
+          </Text>
+        </View>
+
+        <View style={styles.productTag}>
+          <Ionicons name="cube" size={14} color={Colors.warning} />
+          <Text style={styles.productTagText}>Stock: {item.stock}</Text>
+        </View>
+      </View>
+
+      {(item.talla || item.color) && (
+        <View style={styles.productAttributes}>
+          {item.talla && (
+            <View style={styles.attributeTag}>
+              <Text style={styles.attributeText}>Talla: {item.talla}</Text>
+            </View>
+          )}
+          {item.color && (
+            <View style={styles.attributeTag}>
+              <Text style={styles.attributeText}>Color: {item.color}</Text>
+            </View>
+          )}
+        </View>
+      )}
+    </Animated.View>
+  );
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          colors={[Colors.primary]}
+        />
+      }
     >
       <Animated.View entering={FadeInUp.delay(100)} style={styles.header}>
         <View style={styles.userInfo}>
@@ -115,10 +207,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           color={Colors.success}
         />
         <StatCard
-          title="Cancelados"
-          value="2"
-          icon="close-circle-outline"
-          color={Colors.error}
+          title="Productos"
+          value={products.length.toString()}
+          icon="cube-outline"
+          color={Colors.secondary}
         />
       </View>
 
@@ -129,17 +221,17 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
         <Text style={styles.sectionTitle}>Gestión de Pedidos</Text>
 
         <MenuOption
-          title="Registrar Pedido"
+          title="Crear Pedido"
           subtitle="Crear un nuevo pedido de cliente"
           icon="add-circle-outline"
-          onPress={() => Alert.alert("Próximamente", "Función en desarrollo")}
+          onPress={() => navigation.navigate("CreateOrder")}
         />
 
         <MenuOption
           title="Ver Pedidos"
           subtitle="Consultar todos los pedidos registrados"
           icon="list-outline"
-          onPress={() => Alert.alert("Próximamente", "Función en desarrollo")}
+          onPress={() => navigation.navigate("Orders")}
         />
 
         <MenuOption
@@ -155,6 +247,48 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({
           icon="bar-chart-outline"
           onPress={() => Alert.alert("Próximamente", "Función en desarrollo")}
         />
+      </Animated.View>
+
+      <Animated.View
+        entering={FadeInDown.delay(600)}
+        style={styles.productsContainer}
+      >
+        <View style={styles.productsHeader}>
+          <Text style={styles.sectionTitle}>Productos</Text>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => navigation.navigate("AddProduct")}
+          >
+            <Ionicons name="add" size={20} color="#fff" />
+            <Text style={styles.addButtonText}>Agregar</Text>
+          </TouchableOpacity>
+        </View>
+
+        {loading && products.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Cargando productos...</Text>
+          </View>
+        ) : products.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons
+              name="cube-outline"
+              size={48}
+              color={Colors.textSecondary}
+            />
+            <Text style={styles.emptyText}>No hay productos registrados</Text>
+            <Text style={styles.emptySubtext}>
+              Agrega tu primer producto para comenzar
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={products}
+            renderItem={({ item }) => <ProductCard item={item} />}
+            keyExtractor={(item) => item.id}
+            scrollEnabled={false}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
       </Animated.View>
     </ScrollView>
   );
@@ -286,5 +420,121 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginTop: 2,
+    textAlign: "center",
+  },
+  productsContainer: {
+    backgroundColor: Colors.background,
+    borderRadius: 12,
+    padding: 20,
+    marginTop: 20,
+  },
+  productsHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  addButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  addButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  productCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.borderLight,
+  },
+  productHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  productName: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: Colors.text,
+    flex: 1,
+    marginRight: 12,
+  },
+  productPrice: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: Colors.primary,
+  },
+  productDescription: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  productDetails: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 8,
+  },
+  productTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  productTagText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: "500",
+  },
+  productAttributes: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  attributeTag: {
+    backgroundColor: Colors.primary + "15",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  attributeText: {
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: "500",
+  },
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: Colors.text,
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginTop: 4,
+    textAlign: "center",
   },
 });
+
+export default DashboardScreen;

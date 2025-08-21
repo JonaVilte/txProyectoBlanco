@@ -21,4 +21,11 @@ export const Colors = {
 
   border: "#e5e7eb", // gray-200
   borderLight: "#f3f4f6", // gray-100
+
+  muted: "#cccccc",
+  destructive: "#e53935",
+  foreground: "#222222",
+  card: "#fefefe",
+  mutedForeground: "#888888",
+  accent: "#4CAF50",
 };

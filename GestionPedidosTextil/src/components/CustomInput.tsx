@@ -17,12 +17,14 @@ interface CustomInputProps extends TextInputProps {
   label: string;
   error?: string;
   isPassword?: boolean;
+  icon?: keyof typeof Ionicons.glyphMap; // Added icon prop
 }
 
 export const CustomInput: React.FC<CustomInputProps> = ({
   label,
   error,
   isPassword = false,
+  icon, // Added icon parameter
   style,
   ...props
 }) => {
@@ -39,8 +41,13 @@ export const CustomInput: React.FC<CustomInputProps> = ({
           error && styles.errorContainer,
         ]}
       >
+        {icon && (
+          <View style={styles.leftIcon}>
+            <Ionicons name={icon} size={20} color={Colors.textSecondary} />
+          </View>
+        )}
         <TextInput
-          style={styles.input}
+          style={[styles.input, icon && styles.inputWithIcon]} // Adjusted padding when icon is present
           secureTextEntry={isPassword && !showPassword}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -103,5 +110,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.error,
     marginTop: 4,
+  },
+  inputWithIcon: {
+    paddingLeft: 8,
+  },
+  leftIcon: {
+    paddingLeft: 16,
+    paddingRight: 8,
   },
 });
