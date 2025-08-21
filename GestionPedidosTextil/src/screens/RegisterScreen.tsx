@@ -1,35 +1,26 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-} from "react-native";
-import { useForm, Controller } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
+import type React from "react"
+import { useState } from "react"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native"
+import { useForm, Controller } from "react-hook-form"
+import { yupResolver } from "@hookform/resolvers/yup"
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated"
+import { Ionicons } from "@expo/vector-icons"
 
-import { CustomInput } from "../components/CustomInput";
-import { CustomButton } from "../components/CustomButton";
-import { Colors } from "../constants/colors";
-import type { RegisterForm } from "../types";
-import { registerSchema } from "../utils/validation";
-import { StorageService } from "../utils/storage";
+import { CustomInput } from "../components/CustomInput"
+import { CustomButton } from "../components/CustomButton"
+import { Colors } from "../constants/colors"
+import type { RegisterForm } from "../types"
+import { registerSchema } from "../utils/validation"
+import { databaseService } from "../utils/database"
 
 interface RegisterScreenProps {
-  navigation: any;
+  navigation: any
 }
 
-export const RegisterScreen: React.FC<RegisterScreenProps> = ({
-  navigation,
-}) => {
-  const [loading, setLoading] = useState(false);
+export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
+  const [loading, setLoading] = useState(false)
 
   const {
     control,
@@ -37,65 +28,35 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
     formState: { errors },
   } = useForm<RegisterForm>({
     resolver: yupResolver(registerSchema),
-  });
+  })
 
   const onSubmit = async (data: RegisterForm) => {
-    setLoading(true);
+    setLoading(true)
 
     try {
-      // Verificar si el correo ya está registrado
-      const existingUsers = await StorageService.getRegisteredUsers();
-      const emailExists = existingUsers.some(
-        (user) => user.email === data.email
-      );
+      const result = await databaseService.registerUser(data)
 
-      if (emailExists) {
-        Alert.alert(
-          "Error de registro",
-          "Este correo electrónico ya está registrado. Usa otro correo o inicia sesión."
-        );
-        return;
-      }
-
-      // Crear nuevo usuario
-      const newUser = {
-        id: Date.now().toString(),
-        name: data.name,
-        email: data.email,
-        role: "employee" as const,
-      };
-
-      // Guardar usuario en la lista de usuarios registrados
-      const updatedUsers = [...existingUsers, newUser];
-      await StorageService.saveRegisteredUsers(updatedUsers);
-
-      Alert.alert(
-        "Registro exitoso",
-        "Tu cuenta ha sido creada correctamente. Ahora puedes iniciar sesión.",
-        [
+      if (result.success) {
+        Alert.alert("Registro exitoso", "Tu cuenta ha sido creada correctamente. Ahora puedes iniciar sesión.", [
           {
             text: "OK",
             onPress: () => navigation.navigate("Login"),
           },
-        ]
-      );
+        ])
+      } else {
+        Alert.alert("Error de registro", result.error?.message || "Ocurrió un error al registrar la cuenta")
+      }
     } catch (error) {
-      Alert.alert("Error", "Ocurrió un error al registrar la cuenta");
+      Alert.alert("Error", "Ocurrió un error al registrar la cuenta")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Animated.View entering={FadeInUp.delay(200)} style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
 
@@ -103,9 +64,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
           <Ionicons name="person-add" size={48} color={Colors.primary} />
         </View>
         <Text style={styles.title}>Crear Cuenta</Text>
-        <Text style={styles.subtitle}>
-          Completa todos los campos para registrarte
-        </Text>
+        <Text style={styles.subtitle}>Completa todos los campos para registrarte</Text>
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(400)} style={styles.form}>
@@ -189,8 +148,8 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({
         </View>
       </Animated.View>
     </ScrollView>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -254,4 +213,4 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     fontWeight: "600",
   },
-});
+})

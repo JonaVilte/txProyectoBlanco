@@ -1,37 +1,28 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-} from "react-native";
-import { useForm, Controller } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
+import type React from "react"
+import { useState } from "react"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native"
+import { useForm, Controller } from "react-hook-form"
+import { yupResolver } from "@hookform/resolvers/yup"
+import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated"
+import { Ionicons } from "@expo/vector-icons"
 
-import { CustomInput } from "../components/CustomInput";
-import { CustomButton } from "../components/CustomButton";
-import { Colors } from "../constants/colors";
-import type { LoginForm } from "../types";
-import { loginSchema } from "../utils/validation";
-import { StorageService } from "../utils/storage";
+import { CustomInput } from "../components/CustomInput"
+import { CustomButton } from "../components/CustomButton"
+import { Colors } from "../constants/colors"
+import type { LoginForm } from "../types"
+import { loginSchema } from "../utils/validation"
+import { StorageService } from "../utils/storage"
+import { databaseService } from "../utils/database"
 
 interface LoginScreenProps {
-  navigation: any;
-  onLogin: (user: any) => void;
+  navigation: any
+  onLogin: (user: any) => void
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({
-  navigation,
-  onLogin,
-}) => {
-  const [loading, setLoading] = useState(false);
+export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, onLogin }) => {
+  const [loading, setLoading] = useState(false)
 
   const {
     control,
@@ -39,58 +30,45 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: yupResolver(loginSchema),
-  });
+  })
 
   const onSubmit = async (data: LoginForm) => {
-    setLoading(true);
+    setLoading(true)
 
     try {
-      // Simular validación de credenciales
-      if (data.email === "admin@textil.com" && data.password === "123456") {
+      const result = await databaseService.loginUser(data)
+
+      if (result.success && result.user) {
         const user = {
-          id: "1",
-          name: "Administrador",
-          email: data.email,
-          role: "admin" as const,
-        };
-
-        await StorageService.saveCurrentUser(user);
-        onLogin(user);
-      } else {
-        // Verificar usuarios registrados
-        const users = await StorageService.getRegisteredUsers();
-        const foundUser = users.find((user) => user.email === data.email);
-
-        if (foundUser) {
-          await StorageService.saveCurrentUser(foundUser);
-          onLogin(foundUser);
-        } else {
-          Alert.alert(
-            "Error de inicio de sesión",
-            "Las credenciales ingresadas son incorrectas. Verifica tu correo y contraseña."
-          );
+          id: result.user.id,
+          name: result.user.nombre,
+          email: result.user.email,
+          role: "employee" as const,
         }
+
+        await StorageService.saveCurrentUser(user)
+        onLogin(user)
+      } else {
+        Alert.alert(
+          "Error de inicio de sesión",
+          result.error?.message || "Las credenciales ingresadas son incorrectas. Verifica tu correo y contraseña.",
+        )
       }
     } catch (error) {
-      Alert.alert("Error", "Ocurrió un error al iniciar sesión");
+      Alert.alert("Error", "Ocurrió un error al iniciar sesión")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Animated.View entering={FadeInUp.delay(200)} style={styles.header}>
         <View style={styles.iconContainer}>
           <Ionicons name="shirt" size={48} color={Colors.primary} />
         </View>
         <Text style={styles.title}>Gestión Textil</Text>
-        <Text style={styles.subtitle}>
-          Inicia sesión para gestionar pedidos
-        </Text>
+        <Text style={styles.subtitle}>Inicia sesión para gestionar pedidos</Text>
       </Animated.View>
 
       <Animated.View entering={FadeInDown.delay(400)} style={styles.form}>
@@ -100,7 +78,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           render={({ field: { onChange, onBlur, value } }) => (
             <CustomInput
               label="Correo Electrónico"
-              placeholder="admin@textil.com"
+              placeholder="ejemplo@correo.com"
               value={value}
               onChangeText={onChange}
               onBlur={onBlur}
@@ -142,8 +120,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         </View>
       </Animated.View>
     </ScrollView>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -198,6 +176,6 @@ const styles = StyleSheet.create({
   registerLink: {
     fontSize: 16,
     color: Colors.primary,
-    fontWeight: "600",
+    fontWeight: "600", 
   },
-});
+})
