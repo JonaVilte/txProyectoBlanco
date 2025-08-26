@@ -1,61 +1,51 @@
-"use client";
+"use client"
 
-import { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  TextInput,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import { Colors } from "../constants/colors";
-import type { Product, CartItem } from "../types";
-import { databaseService } from "../utils/database";
-import CustomButton from "../components/CustomButton";
+import { useState, useEffect } from "react"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput } from "react-native"
+import { Ionicons } from "@expo/vector-icons"
+import { useNavigation } from "@react-navigation/native"
+import { Colors } from "../constants/colors"
+import type { Product, CartItem } from "../types"
+import { databaseService } from "../utils/database"
+import CustomButton from "../components/CustomButton"
+import { v4 as uuidv4 } from "uuid"
+import { StorageService } from "@/utils/storage"
 
 const CreateOrderScreen = () => {
-  const navigation = useNavigation();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [observaciones, setObservaciones] = useState("");
+  const navigation = useNavigation()
+  const [products, setProducts] = useState<Product[]>([])
+  const [cart, setCart] = useState<CartItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [observaciones, setObservaciones] = useState("")
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    loadProducts()
+  }, [])
 
   const loadProducts = async () => {
     try {
-      setLoading(true);
-      const result = await databaseService.getProducts();
+      setLoading(true)
+      const result = await databaseService.getProducts()
       if (result.success && result.products) {
-        setProducts(result.products);
+        setProducts(result.products)
       } else {
-        Alert.alert("Error", "No se pudieron cargar los productos");
+        Alert.alert("Error", "No se pudieron cargar los productos")
       }
     } catch (error) {
-      Alert.alert("Error", "Error al cargar productos");
+      Alert.alert("Error", "Error al cargar productos")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const addToCart = (product: Product) => {
-    const existingItem = cart.find((item) => item.producto.id === product.id);
+    const existingItem = cart.find((item) => item.producto.id === product.id)
 
     if (existingItem) {
       if (existingItem.cantidad >= product.stock) {
-        Alert.alert(
-          "Stock insuficiente",
-          `Solo hay ${product.stock} unidades disponibles`
-        );
-        return;
+        Alert.alert("Stock insuficiente", `Solo hay ${product.stock} unidades disponibles`)
+        return
       }
 
       setCart(
@@ -66,9 +56,9 @@ const CreateOrderScreen = () => {
                 cantidad: item.cantidad + 1,
                 subtotal: (item.cantidad + 1) * product.precio,
               }
-            : item
-        )
-      );
+            : item,
+        ),
+      )
     } else {
       setCart([
         ...cart,
@@ -77,27 +67,24 @@ const CreateOrderScreen = () => {
           cantidad: 1,
           subtotal: product.precio,
         },
-      ]);
+      ])
     }
-  };
+  }
 
   const removeFromCart = (productId: string) => {
-    setCart(cart.filter((item) => item.producto.id !== productId));
-  };
+    setCart(cart.filter((item) => item.producto.id !== productId))
+  }
 
   const updateQuantity = (productId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      removeFromCart(productId);
-      return;
+      removeFromCart(productId)
+      return
     }
 
-    const product = products.find((p) => p.id === productId);
+    const product = products.find((p) => p.id === productId)
     if (product && newQuantity > product.stock) {
-      Alert.alert(
-        "Stock insuficiente",
-        `Solo hay ${product.stock} unidades disponibles`
-      );
-      return;
+      Alert.alert("Stock insuficiente", `Solo hay ${product.stock} unidades disponibles`)
+      return
     }
 
     setCart(
@@ -108,65 +95,56 @@ const CreateOrderScreen = () => {
               cantidad: newQuantity,
               subtotal: newQuantity * item.producto.precio,
             }
-          : item
-      )
-    );
-  };
+          : item,
+      ),
+    )
+  }
 
   const getTotalAmount = () => {
-    return cart.reduce((total, item) => total + item.subtotal, 0);
-  };
+    return cart.reduce((total, item) => total + item.subtotal, 0)
+  }
 
   const createOrder = async () => {
     if (cart.length === 0) {
-      Alert.alert(
-        "Carrito vacío",
-        "Agrega productos al carrito antes de crear el pedido"
-      );
-      return;
+      Alert.alert("Carrito vacío", "Agrega productos al carrito antes de crear el pedido")
+      return
     }
 
     try {
-      setCreating(true);
+      setCreating(true)
 
-      // Por ahora usamos un usuario hardcodeado, en producción se obtendría del contexto de autenticación
-      const usuarioId = "temp-user-id"; // TODO: Obtener del contexto de usuario actual
+          // 👇 Recuperás el usuario logueado
+    const currentUser = await StorageService.getCurrentUser();
 
-      const result = await databaseService.createOrder(
-        usuarioId,
-        cart,
-        observaciones
-      );
+    if (!currentUser) {
+      Alert.alert("Error", "Debes iniciar sesión para crear un pedido");
+      return;
+    }
+
+      const usuarioId = currentUser.id // UUID válido generado
+
+      const result = await databaseService.createOrder(usuarioId, cart, observaciones)
 
       if (result.success) {
-        Alert.alert(
-          "Pedido creado",
-          `Pedido creado exitosamente por un total de $${getTotalAmount().toFixed(
-            2
-          )}`,
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                setCart([]);
-                setObservaciones("");
-                navigation.goBack();
-              },
+        Alert.alert("Pedido creado", `Pedido creado exitosamente por un total de $${getTotalAmount().toFixed(2)}`, [
+          {
+            text: "OK",
+            onPress: () => {
+              setCart([])
+              setObservaciones("")
+              navigation.goBack()
             },
-          ]
-        );
+          },
+        ])
       } else {
-        Alert.alert(
-          "Error",
-          result.error?.message || "No se pudo crear el pedido"
-        );
+        Alert.alert("Error", result.error?.message || "No se pudo crear el pedido")
       }
     } catch (error) {
-      Alert.alert("Error", "No se pudo crear el pedido");
+      Alert.alert("Error", "No se pudo crear el pedido")
     } finally {
-      setCreating(false);
+      setCreating(false)
     }
-  };
+  }
 
   if (loading) {
     return (
@@ -174,7 +152,7 @@ const CreateOrderScreen = () => {
         <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={styles.loadingText}>Cargando productos...</Text>
       </View>
-    );
+    )
   }
 
   return (
@@ -187,31 +165,18 @@ const CreateOrderScreen = () => {
             <View key={product.id} style={styles.productCard}>
               <View style={styles.productInfo}>
                 <Text style={styles.productName}>{product.nombre}</Text>
-                <Text style={styles.productDescription}>
-                  {product.descripcion}
-                </Text>
+                <Text style={styles.productDescription}>{product.descripcion}</Text>
                 <View style={styles.productDetails}>
-                  <Text style={styles.productPrice}>
-                    ${product.precio.toFixed(2)}
-                  </Text>
-                  <Text style={styles.productStock}>
-                    Stock: {product.stock}
-                  </Text>
+                  <Text style={styles.productPrice}>${product.precio.toFixed(2)}</Text>
+                  <Text style={styles.productStock}>Stock: {product.stock}</Text>
                 </View>
               </View>
               <TouchableOpacity
-                style={[
-                  styles.addButton,
-                  product.stock === 0 && styles.addButtonDisabled,
-                ]}
+                style={[styles.addButton, product.stock === 0 && styles.addButtonDisabled]}
                 onPress={() => addToCart(product)}
                 disabled={product.stock === 0}
               >
-                <Ionicons
-                  name="add"
-                  size={20}
-                  color={product.stock === 0 ? Colors.muted : Colors.background}
-                />
+                <Ionicons name="add" size={20} color={product.stock === 0 ? Colors.muted : Colors.background} />
               </TouchableOpacity>
             </View>
           ))}
@@ -224,41 +189,27 @@ const CreateOrderScreen = () => {
             {cart.map((item) => (
               <View key={item.producto.id} style={styles.cartItem}>
                 <View style={styles.cartItemInfo}>
-                  <Text style={styles.cartItemName}>
-                    {item.producto.nombre}
-                  </Text>
+                  <Text style={styles.cartItemName}>{item.producto.nombre}</Text>
                   <Text style={styles.cartItemPrice}>
-                    ${item.producto.precio.toFixed(2)} x {item.cantidad} = $
-                    {item.subtotal.toFixed(2)}
+                    ${item.producto.precio.toFixed(2)} x {item.cantidad} = ${item.subtotal.toFixed(2)}
                   </Text>
                 </View>
                 <View style={styles.quantityControls}>
                   <TouchableOpacity
                     style={styles.quantityButton}
-                    onPress={() =>
-                      updateQuantity(item.producto.id, item.cantidad - 1)
-                    }
+                    onPress={() => updateQuantity(item.producto.id, item.cantidad - 1)}
                   >
                     <Ionicons name="remove" size={16} color={Colors.primary} />
                   </TouchableOpacity>
                   <Text style={styles.quantityText}>{item.cantidad}</Text>
                   <TouchableOpacity
                     style={styles.quantityButton}
-                    onPress={() =>
-                      updateQuantity(item.producto.id, item.cantidad + 1)
-                    }
+                    onPress={() => updateQuantity(item.producto.id, item.cantidad + 1)}
                   >
                     <Ionicons name="add" size={16} color={Colors.primary} />
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.removeButton}
-                    onPress={() => removeFromCart(item.producto.id)}
-                  >
-                    <Ionicons
-                      name="trash"
-                      size={16}
-                      color={Colors.destructive}
-                    />
+                  <TouchableOpacity style={styles.removeButton} onPress={() => removeFromCart(item.producto.id)}>
+                    <Ionicons name="trash" size={16} color={Colors.destructive} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -266,16 +217,12 @@ const CreateOrderScreen = () => {
 
             {/* Total */}
             <View style={styles.totalContainer}>
-              <Text style={styles.totalText}>
-                Total: ${getTotalAmount().toFixed(2)}
-              </Text>
+              <Text style={styles.totalText}>Total: ${getTotalAmount().toFixed(2)}</Text>
             </View>
 
             {/* Observaciones */}
             <View style={styles.observationsContainer}>
-              <Text style={styles.observationsLabel}>
-                Observaciones (opcional)
-              </Text>
+              <Text style={styles.observationsLabel}>Observaciones (opcional)</Text>
               <TextInput
                 style={styles.observationsInput}
                 value={observaciones}
@@ -302,8 +249,8 @@ const CreateOrderScreen = () => {
         </View>
       )}
     </View>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -473,6 +420,6 @@ const styles = StyleSheet.create({
   createButton: {
     backgroundColor: Colors.primary,
   },
-});
+})
 
-export default CreateOrderScreen;
+export default CreateOrderScreen

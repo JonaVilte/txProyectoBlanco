@@ -9,7 +9,7 @@ import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated"
 import { Ionicons } from "@expo/vector-icons"
 
 import { CustomInput } from "../components/CustomInput"
-import { CustomButton } from "../components/CustomButton"
+import  CustomButton  from "../components/CustomButton"
 import { Colors } from "../constants/colors"
 import type { LoginForm } from "../types"
 import { loginSchema } from "../utils/validation"
