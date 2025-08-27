@@ -1,15 +1,24 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput } from "react-native"
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+  TextInput,
+  Modal,
+  FlatList,
+} from "react-native"
 import { Ionicons } from "@expo/vector-icons"
 import { useNavigation } from "@react-navigation/native"
 import { Colors } from "../constants/colors"
-import type { Product, CartItem } from "../types"
+import type { Product, CartItem, DatabaseUser } from "../types"
 import { databaseService } from "../utils/database"
 import CustomButton from "../components/CustomButton"
-import { v4 as uuidv4 } from "uuid"
-import { StorageService } from "@/utils/storage"
 
 const CreateOrderScreen = () => {
   const navigation = useNavigation()
@@ -19,8 +28,14 @@ const CreateOrderScreen = () => {
   const [creating, setCreating] = useState(false)
   const [observaciones, setObservaciones] = useState("")
 
+  const [users, setUsers] = useState<DatabaseUser[]>([])
+  const [selectedUser, setSelectedUser] = useState<DatabaseUser | null>(null)
+  const [showUserModal, setShowUserModal] = useState(false)
+  const [loadingUsers, setLoadingUsers] = useState(false)
+
   useEffect(() => {
     loadProducts()
+    loadUsers()
   }, [])
 
   const loadProducts = async () => {
@@ -36,6 +51,22 @@ const CreateOrderScreen = () => {
       Alert.alert("Error", "Error al cargar productos")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadUsers = async () => {
+    try {
+      setLoadingUsers(true)
+      const result = await databaseService.getAllUsers()
+      if (result.success && result.users) {
+        setUsers(result.users)
+      } else {
+        Alert.alert("Error", "No se pudieron cargar los usuarios")
+      }
+    } catch (error) {
+      Alert.alert("Error", "Error al cargar usuarios")
+    } finally {
+      setLoadingUsers(false)
     }
   }
 
@@ -110,32 +141,34 @@ const CreateOrderScreen = () => {
       return
     }
 
+    if (!selectedUser) {
+      Alert.alert("Usuario requerido", "Debes seleccionar para quién es el pedido")
+      return
+    }
+
     try {
       setCreating(true)
 
-          // 👇 Recuperás el usuario logueado
-    const currentUser = await StorageService.getCurrentUser();
-
-    if (!currentUser) {
-      Alert.alert("Error", "Debes iniciar sesión para crear un pedido");
-      return;
-    }
-
-      const usuarioId = currentUser.id // UUID válido generado
+      const usuarioId = selectedUser.id
 
       const result = await databaseService.createOrder(usuarioId, cart, observaciones)
 
       if (result.success) {
-        Alert.alert("Pedido creado", `Pedido creado exitosamente por un total de $${getTotalAmount().toFixed(2)}`, [
-          {
-            text: "OK",
-            onPress: () => {
-              setCart([])
-              setObservaciones("")
-              navigation.goBack()
+        Alert.alert(
+          "Pedido creado",
+          `Pedido creado exitosamente para ${selectedUser.nombre} por un total de $${getTotalAmount().toFixed(2)}`,
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                setCart([])
+                setObservaciones("")
+                setSelectedUser(null)
+                navigation.goBack()
+              },
             },
-          },
-        ])
+          ],
+        )
       } else {
         Alert.alert("Error", result.error?.message || "No se pudo crear el pedido")
       }
@@ -145,6 +178,21 @@ const CreateOrderScreen = () => {
       setCreating(false)
     }
   }
+
+  const selectUser = (user: DatabaseUser) => {
+    setSelectedUser(user)
+    setShowUserModal(false)
+  }
+
+  const renderUserItem = ({ item }: { item: DatabaseUser }) => (
+    <TouchableOpacity style={styles.userItem} onPress={() => selectUser(item)}>
+      <View style={styles.userInfo}>
+        <Text style={styles.userName}>{item.nombre}</Text>
+        <Text style={styles.userEmail}>{item.email}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={Colors.mutedForeground} />
+    </TouchableOpacity>
+  )
 
   if (loading) {
     return (
@@ -158,6 +206,23 @@ const CreateOrderScreen = () => {
   return (
     <View style={styles.container}>
       <ScrollView style={styles.content}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>¿Para quién es el pedido?</Text>
+          <TouchableOpacity style={styles.userSelector} onPress={() => setShowUserModal(true)}>
+            <View style={styles.userSelectorContent}>
+              {selectedUser ? (
+                <View>
+                  <Text style={styles.selectedUserName}>{selectedUser.nombre}</Text>
+                  <Text style={styles.selectedUserEmail}>{selectedUser.email}</Text>
+                </View>
+              ) : (
+                <Text style={styles.placeholderText}>Seleccionar usuario</Text>
+              )}
+            </View>
+            <Ionicons name="chevron-down" size={20} color={Colors.mutedForeground} />
+          </TouchableOpacity>
+        </View>
+
         {/* Lista de productos */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Productos Disponibles</Text>
@@ -248,6 +313,32 @@ const CreateOrderScreen = () => {
           />
         </View>
       )}
+
+      <Modal visible={showUserModal} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Seleccionar Usuario</Text>
+            <TouchableOpacity style={styles.closeButton} onPress={() => setShowUserModal(false)}>
+              <Ionicons name="close" size={24} color={Colors.foreground} />
+            </TouchableOpacity>
+          </View>
+
+          {loadingUsers ? (
+            <View style={styles.modalLoadingContainer}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.loadingText}>Cargando usuarios...</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={users}
+              keyExtractor={(item) => item.id}
+              renderItem={renderUserItem}
+              style={styles.usersList}
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   )
 }
@@ -280,6 +371,94 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: Colors.foreground,
     marginBottom: 16,
+  },
+  userSelector: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: Colors.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  userSelectorContent: {
+    flex: 1,
+  },
+  selectedUserName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Colors.foreground,
+    marginBottom: 2,
+  },
+  selectedUserEmail: {
+    fontSize: 14,
+    color: Colors.mutedForeground,
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: Colors.mutedForeground,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: Colors.foreground,
+  },
+  closeButton: {
+    padding: 8,
+  },
+  modalLoadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  usersList: {
+    flex: 1,
+    padding: 16,
+  },
+  userItem: {
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Colors.foreground,
+    marginBottom: 2,
+  },
+  userEmail: {
+    fontSize: 14,
+    color: Colors.mutedForeground,
   },
   productCard: {
     backgroundColor: Colors.card,

@@ -119,5 +119,6 @@ export interface CreateOrderForm {
 }
 
 export interface PedidoCompleto extends Pedido {
+  usuario: any;
   detalles: (PedidoDetalle & { producto: Product })[];
 }
