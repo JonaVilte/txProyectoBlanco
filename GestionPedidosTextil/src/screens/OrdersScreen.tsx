@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,20 +10,20 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
-} from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { useNavigation } from "@react-navigation/native"
-import { Colors } from "../constants/colors"
-import type { PedidoCompleto } from "../types"
-import { databaseService } from "../utils/database"
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import { Colors } from "../constants/colors";
+import type { PedidoCompleto } from "../types";
+import { databaseService } from "../utils/database";
 
-const OrdersScreen = () => {
-  const navigation = useNavigation()
-  const [orders, setOrders] = useState<PedidoCompleto[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [selectedStatus, setSelectedStatus] = useState<string>("todos")
-  const [expandedOrder, setExpandedOrder] = useState<string | null>(null)
+const OrdersScreen = (p0: string) => {
+  const navigation = useNavigation();
+  const [orders, setOrders] = useState<PedidoCompleto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>("todos");
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
   const statusOptions = [
     { key: "todos", label: "Todos", color: Colors.foreground },
@@ -31,88 +31,105 @@ const OrdersScreen = () => {
     { key: "en_proceso", label: "En Proceso", color: Colors.primary },
     { key: "completado", label: "Completado", color: Colors.accent },
     { key: "cancelado", label: "Cancelado", color: Colors.destructive },
-  ]
+  ];
 
   useEffect(() => {
-    loadOrders()
-  }, [])
+    loadOrders();
+  }, []);
 
+  //Cargar pedidos
   const loadOrders = async () => {
     try {
-      setLoading(true)
-      const result = await databaseService.getOrders()
+      setLoading(true);
+      const result = await databaseService.getOrders();
       if (result.success && result.pedidos) {
-        setOrders(result.pedidos)
+        setOrders(result.pedidos);
       } else {
-        Alert.alert("Error", result.error?.message || "No se pudieron cargar los pedidos")
+        Alert.alert(
+          "Error",
+          result.error?.message || "No se pudieron cargar los pedidos"
+        );
       }
     } catch (error) {
-      Alert.alert("Error", "Error al cargar pedidos")
+      Alert.alert("Error", "Error al cargar pedidos");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const onRefresh = async () => {
-    setRefreshing(true)
-    await loadOrders()
-    setRefreshing(false)
-  }
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  };
 
   const updateOrderStatus = async (
     orderId: string,
-    newStatus: "pendiente" | "en_proceso" | "completado" | "cancelado",
+    newStatus: "pendiente" | "en_proceso" | "completado" | "cancelado"
   ) => {
     try {
-      const result = await databaseService.updateOrderStatus(orderId, newStatus)
+      const result = await databaseService.updateOrderStatus(
+        orderId,
+        newStatus
+      );
       if (result.success) {
         // Actualizar el estado local
-        setOrders(orders.map((order) => (order.id === orderId ? { ...order, estado: newStatus } : order)))
-        Alert.alert("Éxito", "Estado del pedido actualizado")
+        setOrders(
+          orders.map((order) =>
+            order.id === orderId ? { ...order, estado: newStatus } : order
+          )
+        );
+        Alert.alert("Éxito", "Estado del pedido actualizado");
       } else {
-        Alert.alert("Error", result.error?.message || "No se pudo actualizar el estado")
+        Alert.alert(
+          "Error",
+          result.error?.message || "No se pudo actualizar el estado"
+        );
       }
     } catch (error) {
-      Alert.alert("Error", "Error al actualizar estado del pedido")
+      Alert.alert("Error", "Error al actualizar estado del pedido");
     }
-  }
+  };
 
+  //Formato fecha
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
+    const date = new Date(dateString);
     return date.toLocaleDateString("es-ES", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    })
-  }
+    });
+  };
 
   const getStatusColor = (status: string) => {
-    const statusOption = statusOptions.find((option) => option.key === status)
-    return statusOption?.color || Colors.foreground
-  }
+    const statusOption = statusOptions.find((option) => option.key === status);
+    return statusOption?.color || Colors.foreground;
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "pendiente":
-        return "time-outline"
+        return "time-outline";
       case "en_proceso":
-        return "sync-outline"
+        return "sync-outline";
       case "completado":
-        return "checkmark-circle-outline"
+        return "checkmark-circle-outline";
       case "cancelado":
-        return "close-circle-outline"
+        return "close-circle-outline";
       default:
-        return "help-circle-outline"
+        return "help-circle-outline";
     }
-  }
+  };
 
-  const filteredOrders = orders.filter((order) => (selectedStatus === "todos" ? true : order.estado === selectedStatus))
+  const filteredOrders = orders.filter((order) =>
+    selectedStatus === "todos" ? true : order.estado === selectedStatus
+  );
 
   const toggleOrderExpansion = (orderId: string) => {
-    setExpandedOrder(expandedOrder === orderId ? null : orderId)
-  }
+    setExpandedOrder(expandedOrder === orderId ? null : orderId);
+  };
 
   const showStatusChangeOptions = (order: PedidoCompleto) => {
     const options = statusOptions
@@ -120,12 +137,16 @@ const OrdersScreen = () => {
       .map((option) => ({
         text: option.label,
         onPress: () => updateOrderStatus(order.id, option.key as any),
-      }))
+      }));
 
-    options.push({ text: "Cancelar", onPress: async () => {} })
+    options.push({ text: "Cancelar", onPress: async () => {} });
 
-    Alert.alert("Cambiar Estado", "Selecciona el nuevo estado del pedido:", options)
-  }
+    Alert.alert(
+      "Cambiar Estado",
+      "Selecciona el nuevo estado del pedido:",
+      options
+    );
+  };
 
   if (loading) {
     return (
@@ -133,20 +154,32 @@ const OrdersScreen = () => {
         <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={styles.loadingText}>Cargando pedidos...</Text>
       </View>
-    )
+    );
   }
 
   return (
     <View style={styles.container}>
       {/* Filtros de estado */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersContainer}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.filtersContainer}
+      >
         {statusOptions.map((option) => (
           <TouchableOpacity
             key={option.key}
-            style={[styles.filterButton, selectedStatus === option.key && styles.filterButtonActive]}
+            style={[
+              styles.filterButton,
+              selectedStatus === option.key && styles.filterButtonActive,
+            ]}
             onPress={() => setSelectedStatus(option.key)}
           >
-            <Text style={[styles.filterButtonText, selectedStatus === option.key && styles.filterButtonTextActive]}>
+            <Text
+              style={[
+                styles.filterButtonText,
+                selectedStatus === option.key && styles.filterButtonTextActive,
+              ]}
+            >
               {option.label}
             </Text>
           </TouchableOpacity>
@@ -156,46 +189,83 @@ const OrdersScreen = () => {
       {/* Lista de pedidos */}
       <ScrollView
         style={styles.content}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {filteredOrders.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <Ionicons name="receipt-outline" size={64} color={Colors.mutedForeground} />
+            <Ionicons
+              name="receipt-outline"
+              size={64}
+              color={Colors.mutedForeground}
+            />
             <Text style={styles.emptyText}>No hay pedidos</Text>
             <Text style={styles.emptySubtext}>
               {selectedStatus === "todos"
                 ? "Aún no se han creado pedidos"
-                : `No hay pedidos con estado "${statusOptions.find((s) => s.key === selectedStatus)?.label}"`}
+                : `No hay pedidos con estado "${
+                    statusOptions.find((s) => s.key === selectedStatus)?.label
+                  }"`}
             </Text>
           </View>
         ) : (
           filteredOrders.map((order) => (
             <View key={order.id} style={styles.orderCard}>
               {/* Header del pedido */}
-              <TouchableOpacity style={styles.orderHeader} onPress={() => toggleOrderExpansion(order.id)}>
+              <TouchableOpacity
+                style={styles.orderHeader}
+                onPress={() => toggleOrderExpansion(order.id)}
+              >
                 <View style={styles.orderHeaderLeft}>
                   <View style={styles.orderInfo}>
-                    <Text style={styles.orderUser}>Para: {order.usuario?.nombre || "Usuario no encontrado"}</Text>
-                    <Text style={styles.orderDate}>{formatDate(order.fecha_emision)}</Text>
-                    <Text style={styles.orderTotal}>${order.total.toFixed(2)}</Text>
+                    <Text style={styles.orderUser}>
+                      Para: {order.usuario?.nombre || "Usuario no encontrado"}
+                    </Text>
+                    <Text style={styles.orderDate}>
+                      {formatDate(order.fecha_emision)}
+                    </Text>
+                    <Text style={styles.orderTotal}>
+                      ${order.total.toFixed(2)}
+                    </Text>
                   </View>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.estado) + "20" }]}>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: getStatusColor(order.estado) + "20" },
+                    ]}
+                  >
                     <Ionicons
                       name={getStatusIcon(order.estado) as any}
                       size={16}
                       color={getStatusColor(order.estado)}
                     />
-                    <Text style={[styles.statusText, { color: getStatusColor(order.estado) }]}>
-                      {statusOptions.find((s) => s.key === order.estado)?.label || order.estado}
+                    <Text
+                      style={[
+                        styles.statusText,
+                        { color: getStatusColor(order.estado) },
+                      ]}
+                    >
+                      {statusOptions.find((s) => s.key === order.estado)
+                        ?.label || order.estado}
                     </Text>
                   </View>
                 </View>
                 <View style={styles.orderHeaderRight}>
-                  <TouchableOpacity style={styles.statusChangeButton} onPress={() => showStatusChangeOptions(order)}>
-                    <Ionicons name="create-outline" size={20} color={Colors.primary} />
+                  <TouchableOpacity
+                    style={styles.statusChangeButton}
+                    onPress={() => showStatusChangeOptions(order)}
+                  >
+                    <Ionicons
+                      name="create-outline"
+                      size={20}
+                      color={Colors.primary}
+                    />
                   </TouchableOpacity>
                   <Ionicons
-                    name={expandedOrder === order.id ? "chevron-up" : "chevron-down"}
+                    name={
+                      expandedOrder === order.id ? "chevron-up" : "chevron-down"
+                    }
                     size={20}
                     color={Colors.mutedForeground}
                   />
@@ -207,8 +277,12 @@ const OrdersScreen = () => {
                 <View style={styles.orderDetails}>
                   {order.observaciones && (
                     <View style={styles.observationsContainer}>
-                      <Text style={styles.observationsLabel}>Observaciones:</Text>
-                      <Text style={styles.observationsText}>{order.observaciones}</Text>
+                      <Text style={styles.observationsLabel}>
+                        Observaciones:
+                      </Text>
+                      <Text style={styles.observationsText}>
+                        {order.observaciones}
+                      </Text>
                     </View>
                   )}
 
@@ -216,14 +290,21 @@ const OrdersScreen = () => {
                   {order.detalles.map((detalle) => (
                     <View key={detalle.id} style={styles.productItem}>
                       <View style={styles.productInfo}>
-                        <Text style={styles.productName}>{detalle.producto.nombre}</Text>
+                        <Text style={styles.productName}>
+                          {detalle.producto.nombre}
+                        </Text>
                         <Text style={styles.productDescription}>
-                          {detalle.producto.categoria} • {detalle.producto.talla} • {detalle.producto.color}
+                          {detalle.producto.categoria} •{" "}
+                          {detalle.producto.talla} • {detalle.producto.color}
                         </Text>
                       </View>
                       <View style={styles.productQuantityPrice}>
-                        <Text style={styles.productQuantity}>x{detalle.cantidad}</Text>
-                        <Text style={styles.productPrice}>${detalle.subtotal.toFixed(2)}</Text>
+                        <Text style={styles.productQuantity}>
+                          x{detalle.cantidad}
+                        </Text>
+                        <Text style={styles.productPrice}>
+                          ${detalle.subtotal.toFixed(2)}
+                        </Text>
                       </View>
                     </View>
                   ))}
@@ -235,12 +316,15 @@ const OrdersScreen = () => {
       </ScrollView>
 
       {/* Botón flotante para crear nuevo pedido */}
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate("CreateOrder" as never)}>
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate("CreateOrder" as never)}
+      >
         <Ionicons name="add" size={24} color={Colors.background} />
       </TouchableOpacity>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -444,6 +528,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-})
+});
 
-export default OrdersScreen
+export default OrdersScreen;
