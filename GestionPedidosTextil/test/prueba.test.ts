@@ -1,4 +1,4 @@
-import formatDate from "../src/screens/OrdersScreen";
+import { formatDate } from "../src/utils/formarDate";
 
 describe("El formato de la fecha", () => {
   it("devuelve la fecha formateada en español", () => {
