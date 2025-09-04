@@ -17,7 +17,7 @@ import { Colors } from "../constants/colors";
 import type { PedidoCompleto } from "../types";
 import { databaseService } from "../utils/database";
 
-const OrdersScreen = (p0: string) => {
+export const OrdersScreen = (p0: string) => {
   const navigation = useNavigation();
   const [orders, setOrders] = useState<PedidoCompleto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +63,7 @@ const OrdersScreen = (p0: string) => {
     setRefreshing(false);
   };
 
+    //actualizar Estado De Pedido
   const updateOrderStatus = async (
     orderId: string,
     newStatus: "pendiente" | "en_proceso" | "completado" | "cancelado"
